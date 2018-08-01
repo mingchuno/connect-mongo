@@ -11,15 +11,16 @@
   ],
   "contributors": [
     "Casey Banner <kcbanner@gmail.com>",
-    "Jerome Desboeufs <jerome.desboeufs@gmail.com>"
+    "Jerome Desboeufs <jerome.desboeufs@gmail.com>",
+    "MC Or <mingchuno@gmail.com>"
   ],
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jdesboeufs/connect-mongo.git"
+    "url": "https://github.com/mingchuno/connect-mongo.git"
   },
   "bugs": {
-    "url": "https://github.com/jdesboeufs/connect-mongo/issues"
+    "url": "https://github.com/mingchuno/connect-mongo/issues"
   },
   "dependencies": {
     "mongodb": "^3.0.0"
