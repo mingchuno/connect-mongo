@@ -31,7 +31,7 @@ function defaultSerializeFunction(session) {
   return obj
 }
 
-function computeTransformFunctions(options, defaultStringify) {
+function computeTransformFunctions(options) {
   if (options.serialize || options.unserialize) {
     return {
       serialize: options.serialize || defaultSerializeFunction,
@@ -39,18 +39,16 @@ function computeTransformFunctions(options, defaultStringify) {
     }
   }
 
-  if (options.stringify === false || defaultStringify === false) {
+  if (options.stringify === false) {
     return {
       serialize: defaultSerializeFunction,
       unserialize: x => x
     }
   }
-
-  if (options.stringify === true || defaultStringify === true) {
-    return {
-      serialize: JSON.stringify,
-      unserialize: JSON.parse
-    }
+  // default case
+  return {
+    serialize: JSON.stringify,
+    unserialize: JSON.parse
   }
 }
 
@@ -71,44 +69,35 @@ module.exports = function (connect) {
 
       /* Options */
       this.ttl = options.ttl || 1209600 // 14 days
+      this.dbName = options.dbName || 'mongo-sessions'
       this.collectionName = options.collection || 'sessions'
       this.autoRemove = options.autoRemove || 'native'
-      this.autoRemoveInterval = options.autoRemoveInterval || 10
-      this.transformFunctions = computeTransformFunctions(options, true)
+      this.autoRemoveInterval = options.autoRemoveInterval || 10 // minutes
+      this.transformFunctions = computeTransformFunctions(options)
 
       this.options = options
 
       this.changeState('init')
 
-      const newConnectionCallback = (err, db) => {
+      const newConnectionCallback = (err, client) => {
         if (err) {
           this.connectionFailed(err)
         } else {
-          this.handleNewConnectionAsync(db)
+          this.handleNewConnectionAsync(client)
         }
       }
 
       if (options.url) {
         // New native connection using url + mongoOptions
-        MongoClient.connect(options.url, options.mongoOptions || {}, newConnectionCallback)
+        const mongoOptions = options.mongoOptions || {}
+        MongoClient.connect(options.url, mongoOptions, newConnectionCallback)
       } else if (options.mongooseConnection) {
         // Re-use existing or upcoming mongoose connection
         if (options.mongooseConnection.readyState === 1) {
-          this.handleNewConnectionAsync(options.mongooseConnection.db)
+          this.handleNewConnectionAsync(options.mongooseConnection)
         } else {
-          options.mongooseConnection.once('open', () => this.handleNewConnectionAsync(options.mongooseConnection.db))
+          options.mongooseConnection.once('open', () => this.handleNewConnectionAsync(options.mongooseConnection))
         }
-      } else if (options.db && options.db.listCollections) {
-        // Re-use existing or upcoming native connection
-        if (options.db.openCalled || options.db.openCalled === undefined) { // OpenCalled is undefined in mongodb@2.x
-          this.handleNewConnectionAsync(options.db)
-        } else {
-          options.db.open(newConnectionCallback)
-        }
-      } else if (options.dbPromise) {
-        options.dbPromise
-          .then(db => this.handleNewConnectionAsync(db))
-          .catch(err => this.connectionFailed(err))
       } else {
         throw new Error('Connection strategy not found')
       }
@@ -121,10 +110,15 @@ module.exports = function (connect) {
       throw err
     }
 
-    handleNewConnectionAsync(db) {
-      this.db = db
+    handleNewConnectionAsync(client) {
+      this.client = client
+      if (typeof client.db !== 'function') {
+        this.db = client.db
+      } else {
+        this.db = client.db(this.dbName)
+      }
       return this
-        .setCollection(db.collection(this.collectionName))
+        .setCollection(this.db.collection(this.collectionName))
         .setAutoRemoveAsync()
         .then(() => this.changeState('connected'))
     }
@@ -300,7 +294,7 @@ module.exports = function (connect) {
 
     length(callback) {
       return withCallback(this.collectionReady()
-        .then(collection => collection.count({}))
+        .then(collection => collection.countDocuments({}))
         , callback)
     }
 
@@ -311,8 +305,8 @@ module.exports = function (connect) {
     }
 
     close() {
-      if (this.db) {
-        this.db.close()
+      if (this.client) {
+        this.client.close()
       }
     }
   }

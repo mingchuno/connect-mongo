@@ -89,12 +89,11 @@ const open_db = function (options, callback) {
 }
 
 const cleanup_store = function (store) {
-  store.db.close()
+  store.close()
 }
 
 const cleanup = function (store, db, collection, callback) {
   collection.drop(() => {
-    db.close()
     cleanup_store(store)
     callback()
   })
@@ -105,12 +104,9 @@ function getNativeDbConnection(options, done) {
     done = options
     options = {}
   }
-  mongo.MongoClient.connect(connectionString, (err, db) => {
-    if (err) {
-      return done(err)
-    }
-    open_db(Object.assign(options, {db}), done)
-  })
+  open_db(Object.assign(options, {
+    url: connectionString
+  }), done)
 }
 
 exports.test_set = function (done) {
@@ -333,7 +329,7 @@ exports.test_clear = function (done) {
     const sid = 'test_length-sid'
     collection.insert({_id: sid, key1: 1, key2: 'two'}, () => {
       store.clear(() => {
-        collection.count((err, count) => {
+        collection.countDocuments((err, count) => {
           assert.strictEqual(count, 0)
 
           cleanup(store, db, collection, () => {
@@ -351,7 +347,7 @@ exports.test_clear_promise = function (done) {
     collection.insert({_id: sid, key1: 1, key2: 'two'}, () => {
       store.clear()
         .then(() => {
-          collection.count((err, count) => {
+          collection.countDocuments((err, count) => {
             assert.strictEqual(count, 0)
 
             cleanup(store, db, collection, () => {
@@ -428,25 +424,25 @@ exports.test_set_with_mongoose_db = function (done) {
 
 /* Options.dbPromise tests */
 
-exports.test_set_with_promise_db = function (done) {
-  open_db({dbPromise: getDbPromise()}, (store, db, collection) => {
-    const sid = 'test_set-sid'
-    const data = make_data()
+// exports.test_set_with_promise_db = function (done) {
+//   open_db({dbPromise: getDbPromise()}, (store, db, collection) => {
+//     const sid = 'test_set-sid'
+//     const data = make_data()
 
-    store.set(sid, data, err => {
-      assert.equal(err, null)
+//     store.set(sid, data, err => {
+//       assert.equal(err, null)
 
-      // Verify it was saved
-      collection.findOne({_id: sid}, (err, session) => {
-        assert_session_equals(sid, data, session)
+//       // Verify it was saved
+//       collection.findOne({_id: sid}, (err, session) => {
+//         assert_session_equals(sid, data, session)
 
-        cleanup(store, db, collection, () => {
-          done()
-        })
-      })
-    })
-  })
-}
+//         cleanup(store, db, collection, () => {
+//           done()
+//         })
+//       })
+//     })
+//   })
+// }
 
 /* Tests with existing mongodb native db object */
 

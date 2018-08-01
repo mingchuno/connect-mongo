@@ -16,6 +16,7 @@ describe('Events', () => {
   beforeEach(done => {
     store = new MongoStore({
       url: connectionString,
+      dbName: 'connect-mongo-test',
       collection: 'sessions-test'
     })
     store.once('connected', () => {
