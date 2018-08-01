@@ -8,3 +8,6 @@ examples/
 support/
 test/
 coverage/
+yarn.lock
+.travis.yml
+.nyc_output/

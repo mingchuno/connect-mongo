@@ -69,7 +69,6 @@ module.exports = function (connect) {
 
       /* Options */
       this.ttl = options.ttl || 1209600 // 14 days
-      this.dbName = options.dbName || 'mongo-sessions'
       this.collectionName = options.collection || 'sessions'
       this.autoRemove = options.autoRemove || 'native'
       this.autoRemoveInterval = options.autoRemoveInterval || 10 // minutes
@@ -112,11 +111,7 @@ module.exports = function (connect) {
 
     handleNewConnectionAsync(client) {
       this.client = client
-      if (typeof client.db !== 'function') {
-        this.db = client.db
-      } else {
-        this.db = client.db(this.dbName)
-      }
+      this.db = typeof client.db !== 'function' ? client.db : client.db()
       return this
         .setCollection(this.db.collection(this.collectionName))
         .setAutoRemoveAsync()
